@@ -1,4 +1,10 @@
+import re
+from hashlib import md5
+
+import commonmark
 import genanki
+
+from joplin.client import get_resource_mime_type, download_resource
 
 model = genanki.Model(
     1085971095731245,
@@ -17,3 +23,62 @@ model = genanki.Model(
     '''
 )
 default_deck = genanki.Deck(13242340924387509, 'Notes')
+
+
+class Note:
+    def __init__(self, guid, front, back, tags, deck):
+        self.guid = guid
+        self.front = self._preprocess_front(front)
+        self.resources = self._extract_media_resources_and_fix_media_links_from_back(back)
+        self.back = self._preprocess_back(back, self.resources)
+        self.tags = tags
+        self.deck = deck
+
+    def _extract_media_resources_and_fix_media_links_from_back(self, back):
+        resources = dict()
+        for match in re.findall(r'src="(.*?)"', back):
+            if match.startswith(':/'):
+                resource_id = match[2:]
+                mime = get_resource_mime_type(resource_id)
+                if mime.startswith('image'):
+                    # TODO: add that only images are downloaded to doc
+                    path, file_name = download_resource(resource_id, mime)
+                    resources[file_name] = path
+        return resources
+
+    def _preprocess_back(self, back, resources):
+        back = commonmark.commonmark(back)
+        back = re.sub(r'\$\$(.*?)\$\$', r'\[ \1 \]', back)  # apply latex block
+        back = re.sub(r'\$(.*?)\$', r'\( \1 \)', back)  # apply latex
+        for resource_file_name, resource_path in resources.items():
+            resource_id = resource_file_name.split('.')[0]
+            back = re.sub(f'src=":/{resource_id}"', f'src="{resource_file_name}"', back)
+        return back
+
+    def _preprocess_front(self, front):
+        front = commonmark.commonmark(front)
+        return front
+
+    def _get_tag_string(self):
+        return ', '.join(self.tags)
+
+    def _get_anki_tags(self):
+        return [
+            tag.replace(' ', '_').replace('&', 'and').replace('-', '_').replace('.', '')
+            for tag in self.tags
+        ]
+
+    def get_anki_note(self, anki_model):
+        return genanki.Note(
+            model=anki_model,
+            fields=[self.front, self.back, self._get_tag_string()],
+            tags=self._get_anki_tags(),
+            guid=self.guid
+        )
+
+    def get_anki_deck(self):
+        if self.deck is None:
+            return default_deck
+        else:
+            deck_id = int(md5(self.deck.lower().encode()).hexdigest(), 16) % 10 ** 8
+            return genanki.Deck(deck_id, self.deck)

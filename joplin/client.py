@@ -1,9 +1,11 @@
 from urllib.parse import urlencode
+import os
 
 import requests
 
 
-def get_title_and_body(token, note_id):
+def get_title_and_body(note_id):
+    token = os.getenv('JOPLIN_TOKEN')
     query_parameters = urlencode({
         'token': token,
         'fields': 'body,id,title'
@@ -15,7 +17,8 @@ def get_title_and_body(token, note_id):
     return title, body
 
 
-def get_tags(token, note_id):
+def get_tags(note_id):
+    token = os.getenv('JOPLIN_TOKEN')
     query_parameters = urlencode({
         'token': token,
         'fields': 'title',
@@ -29,26 +32,29 @@ def get_tags(token, note_id):
     ]
 
 
-def get_resource_mime_type(token, id):
+def get_resource_mime_type(resource_id):
+    token = os.getenv('JOPLIN_TOKEN')
     query_parameters = urlencode({'token': token, 'fields': 'id,mime'})
-    url = f'http://127.0.0.1:41184/resources/{id}?{query_parameters}'
+    url = f'http://127.0.0.1:41184/resources/{resource_id}?{query_parameters}'
     response = requests.get(url)
     return response.json()['mime']
 
 
-def download_resource(token, id, mime):
+def download_resource(resource_id, mime):
+    token = os.getenv('JOPLIN_TOKEN')
     query_parameters = urlencode({'token': token, })
-    url = f'http://127.0.0.1:41184/resources/{id}/file?{query_parameters}'
+    url = f'http://127.0.0.1:41184/resources/{resource_id}/file?{query_parameters}'
     response = requests.get(url)
-    filename = f'{id}.{mime.split("/")[1]}'
+    filename = f'{resource_id}.{mime.split("/")[1]}'
     path = f'resources/{filename}'
     file = open(path, 'wb')
     file.write(response.content)
     file.close()
-    return filename
+    return path, filename
 
 
-def get_notes(token):
+def get_notes():
+    token = os.getenv('JOPLIN_TOKEN')
     fields = 'id,parent_id,title'
     limit = 100
     page = 1
