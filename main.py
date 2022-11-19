@@ -4,25 +4,23 @@ import genanki
 
 from anki.anki import Note
 from anki.anki import model
-from joplin.client import get_notes, get_tags, get_title_and_body
+from joplin.client import Joplin
 from parsers.parser import extract_config, get_deck, extract_questions, extract_answer
 
-j_notes = get_notes()
+joplin = Joplin(token=os.getenv('JOPLIN_TOKEN'))
 notes = []
 decks = set()
+j_notes = list(joplin.get_notes())
 
 for j_note in j_notes:
-    note_id = j_note['id']
-    title, body = get_title_and_body(note_id)
-    tags = get_tags(note_id)
-    config = extract_config(body)
-    questions = extract_questions(body)
+    config = extract_config(j_note.body)
+    questions = extract_questions(j_note.body)
     for i, question in enumerate(questions):
         deck = get_deck(config, question=i + 1)
-        answer = extract_answer(body, i + 1)
+        answer = extract_answer(j_note.body, i + 1)
         if not answer:
-            raise ValueError(f'Question "{question}" in Card "{title}" has no answer!')
-        note = Note(note_id + str(i), question, answer, tags, deck)
+            raise ValueError(f'Question "{question}" in Card "{j_note.title}" has no answer!')
+        note = Note(j_note.id + str(i), question, answer, j_note.tags, j_note.resources, deck)
         notes.append(note)
         deck = note.get_anki_deck()
         deck.add_note(note.get_anki_note(model))
@@ -30,8 +28,9 @@ for j_note in j_notes:
 
 package = genanki.Package(decks)
 package.media_files = [
-    resource
+    resource.path
     for note in notes
-    for resource in note.resources
+    for _, resource in note.resources.items()
 ]
+
 package.write_to_file('notes.apkg')

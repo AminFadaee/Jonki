@@ -4,8 +4,6 @@ from hashlib import md5
 import commonmark
 import genanki
 
-from joplin.client import get_resource_mime_type, download_resource
-
 model = genanki.Model(
     1085971095731245,
     'Joplin Note', [
@@ -26,33 +24,20 @@ default_deck = genanki.Deck(13242340924387509, 'Notes')
 
 
 class Note:
-    def __init__(self, guid, front, back, tags, deck):
+    def __init__(self, guid, front, back, tags, resources, deck):
         self.guid = guid
         self.front = self._preprocess_front(front)
-        self.resources = self._extract_media_resources_and_fix_media_links_from_back(back)
+        self.resources = resources
         self.back = self._preprocess_back(back, self.resources)
         self.tags = tags
         self.deck = deck
-
-    def _extract_media_resources_and_fix_media_links_from_back(self, back):
-        resources = dict()
-        for match in re.findall(r'src="(.*?)"', back):
-            if match.startswith(':/'):
-                resource_id = match[2:]
-                mime = get_resource_mime_type(resource_id)
-                if mime.startswith('image'):
-                    # TODO: add that only images are downloaded to doc
-                    path, file_name = download_resource(resource_id, mime)
-                    resources[file_name] = path
-        return resources
 
     def _preprocess_back(self, back, resources):
         back = commonmark.commonmark(back)
         back = re.sub(r'\$\$(.*?)\$\$', r'\[ \1 \]', back)  # apply latex block
         back = re.sub(r'\$(.*?)\$', r'\( \1 \)', back)  # apply latex
-        for resource_file_name, resource_path in resources.items():
-            resource_id = resource_file_name.split('.')[0]
-            back = re.sub(f'src=":/{resource_id}"', f'src="{resource_file_name}"', back)
+        for resource_id, resource in resources.items():
+            back = re.sub(f'src=":/{resource_id}"', f'src="{resource.filename}"', back)
         return back
 
     def _preprocess_front(self, front):
