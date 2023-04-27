@@ -1,7 +1,7 @@
 import re
 from hashlib import md5
 
-import commonmark
+from commonmark_extensions.tables import commonmark_to_html
 import genanki
 
 model = genanki.Model(
@@ -33,15 +33,15 @@ class Note:
         self.deck = deck
 
     def _preprocess_back(self, back, resources):
-        back = commonmark.commonmark(back)
+        back = commonmark_to_html(back)
         back = re.sub(r'\$\$(.*?)\$\$', r'\[ \1 \]', back)  # apply latex block
-        back = re.sub(r'\$(.*?)\$', r'\( \1 \)', back)  # apply latex
+        back = re.sub(r'\$(.*?\S)\$', r'\( \1 \)', back)  # apply latex
         for resource_id, resource in resources.items():
             back = re.sub(f'src=":/{resource_id}"', f'src="{resource.filename}"', back)
         return back
 
     def _preprocess_front(self, front):
-        front = commonmark.commonmark(front)
+        front = commonmark_to_html(front)
         return front
 
     def _get_tag_string(self):
