@@ -159,7 +159,6 @@ class Joplin:
     def _request(self, page=1):
         fields = 'id,title,body'
         limit = 100
-        page = 1
         query_parameters = urlencode({
             'token': self.token,
             'fields': fields,
@@ -176,19 +175,15 @@ class Joplin:
         return notes, continued
 
     def get_notes(self) -> List[JoplinNote]:
-        page = 1
-        notes, continued = self._request(page)
-        note_index = 0
-        while continued or page == 1:
-            if note_index >= len(notes):
-                page += 1
-                notes, continued = self._request(page)
-                note_index = 0
-            note_data = notes[note_index]
-            note_index += 1
-            yield JoplinNote(
-                token=self.token,
-                joplin_note_id=note_data['id'],
-                title=note_data['title'],
-                body=note_data['body']
-            )
+        page = 0
+        continued = True
+        while continued:
+            page += 1
+            notes, continued = self._request(page)
+            for note_data in notes:
+                yield JoplinNote(
+                    token=self.token,
+                    joplin_note_id=note_data['id'],
+                    title=note_data['title'],
+                    body=note_data['body']
+                )
