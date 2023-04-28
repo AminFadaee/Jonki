@@ -95,26 +95,14 @@ class JoplinNote:
     def __init__(self, joplin_note_id: str, token: str, title=None, body=None):
         self._note_id = joplin_note_id
         self._token = token
-        self._title = title
-        self._body = body
+        self.title = title
+        self.body = body
         self._tags = None
         self._resources = None
 
     @property
     def id(self) -> str:
         return self._note_id
-
-    @property
-    def title(self) -> str:
-        if self._title is None:
-            self._fetch_title_and_body()
-        return self._title
-
-    @property
-    def body(self) -> str:
-        if self._body is None:
-            self._fetch_title_and_body()
-        return self._body
 
     @property
     def tags(self) -> List[str]:
